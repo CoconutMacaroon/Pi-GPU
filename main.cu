@@ -1,47 +1,44 @@
-#include <iostream>
+#include "main.cuh"
 
-#define iterationsToDo 4096
-//#define iterationsToDo 25
-#define isNumberEven(n) (n % 2 == 0)
+int main()
+{
+    // Create an array of points
+    point *points = (point *)malloc(sizeof(point) * ITERATIONS_TO_DO);
 
-__global__ void calculate(double *runningSum) {
-    int index = threadIdx.x;
-    int stride = blockDim.x;
+    long int pointsWithinDistanceOfOneToOrigin = 0;
 
-    for (int i = index; i < iterationsToDo; i += stride) {
+    long double x = 0;
+    long double y = 0;
 
-        double numerator = isNumberEven(i) ? 1 : -1;
-        double denominator = 2 * i + 1;
-
-        *runningSum += numerator / denominator;
+    for (long int i = 0; i < ITERATIONS_TO_DO_SQRT; i++)
+    {
+        for (long int j = 0; j < ITERATIONS_TO_DO_SQRT; j++)
+        {
+            points[(i * ITERATIONS_TO_DO_SQRT) + j].x = x;
+            points[(i * ITERATIONS_TO_DO_SQRT) + j].y = y;
+            x += MOVE_INCREMENT;
+        }
+        x = 0;
+        y += MOVE_INCREMENT;
     }
-}
 
-__global__ void init(double* runningSum) {
-    *runningSum = 0;
-}
-
-__global__ void printTheThing(double *thingToPrint) {
-    printf("!!! TEST !!!%.20lf", *thingToPrint * 4);
-}
-
-void doIt() {
-    double *runningSum;
-
-    if (cudaMalloc((void **) &runningSum, sizeof(double)) != cudaSuccess) {
-        puts("Something truly terrible happened");
-        exit(1);
+    // and run the algorithm
+    for (long int i = 0; i < ITERATIONS_TO_DO; i++)
+    {
+        if (std::abs(distance(0, points[i].x, 0, points[i].y)) < 1)
+        {
+            pointsWithinDistanceOfOneToOrigin++;
+        }
     }
-    init<<<1, 1>>>(runningSum);
 
-    calculate<<<1, 1>>>(runningSum);
-    cudaDeviceSynchronize();
+    // ITERATIONS_TO_DO needs to be made into a long double to force proper division. Otherwise, it will do integer division.
+    long double pi = 4 * (pointsWithinDistanceOfOneToOrigin / (long double)ITERATIONS_TO_DO);
 
-    printTheThing<<<1, 1>>>(runningSum);
-    cudaDeviceSynchronize();
-}
+    // print the result
+    printf("Pi is %Lf\n", pi);
 
-int main() {
-    doIt();
+    // free the allocated memory
+    free(points);
+
     return 0;
 }
